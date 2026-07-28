@@ -97,9 +97,10 @@ if st.sidebar.button("🤖 Умное распознавание", type="primary
                 Если какого-то поля на фото нет, оставь пустую строку "".
                 """
                 
-                response = client.models.generate_content(
-                    model='gemini-2.0-flash',
+               response = client.models.generate_content(
+                    model='gemini-1.5-flash',
                     contents=[prompt, *images]
+                    )
                 )
                 
                 cleaned_text = response.text.replace("```json", "").replace("```", "").strip()
