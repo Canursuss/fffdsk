@@ -73,50 +73,49 @@ if st.sidebar.button("🤖 Умное распознавание", type="primary
     elif not uploaded_files:
         st.sidebar.warning("⚠️ Загрузите фото документов.")
     else:
-        with st.spinner("Нейросеть читает документы... (занимает 5-15 сек)"):
+        with st.spinner("Загрузка и анализ документов..."):
             try:
+                # Инициализация клиента Google GenAI
                 client = genai.Client(api_key=api_key.strip())
-                images = [Image.open(f) for f in uploaded_files]
                 
-                prompt = """
-                Твоя задача — извлечь данные из предоставленных фото (паспорт, СТС, ПТС) и вернуть их СТРОГО в формате JSON без разметки markdown.
-                Структура JSON:
-                {
-                  "seller_fio": "Фамилия Имя Отчество (если есть в паспорте)",
-                  "seller_passport": "Серия и номер, кем выдан, дата выдачи, код подразделения (собери все в одну строку)",
-                  "seller_address": "Адрес регистрации (прописка) полностью",
-                  "car_mark": "Марка и модель авто",
-                  "car_vin": "VIN номер авто (17 символов)",
-                  "car_year": "Год выпуска",
-                  "car_pts": "Серия и номер ПТС",
-                  "car_sts": "Серия и номер СТС",
-                  "car_number": "Государственный регистрационный знак авто",
-                  "car_color": "Цвет авто",
-                  "car_engine": "Модель и номер двигателя (если есть)"
-                }
-                Если какого-то поля на фото нет, оставь пустую строку "".
-                """
+                # Подготовка изображений из загруженных файлов
+                images = []
+                for file in uploaded_files:
+                    image = Image.open(file)
+                    images.append(image)
+
+                # --- АВТОМАТИЧЕСКИЙ ПОИСК ДОСТУПНОЙ МОДЕЛИ ---
+                all_models = list(client.models.list())
                 
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash-002',
-                    contents=[prompt, *images]
-                )
-                
-                cleaned_text = response.text.replace("```json", "").replace("```", "").strip()
-                extracted_data = json.loads(cleaned_text)
-                
-                for key, val in extracted_data.items():
-                    if key in st.session_state.form_data and val:
-                        st.session_state.form_data[key] = str(val)
-                
-                # Копируем VIN в кузов
-                if st.session_state.form_data.get("car_vin"):
-                     st.session_state.form_data["car_body"] = st.session_state.form_data["car_vin"]
-                        
-                st.sidebar.success("✅ Все данные успешно извлечены!")
-                st.rerun()
+                # Фильтруем модели, поддерживающие генерацию текста/анализ мультимедиа
+                valid_models = []
+                for m in all_models:
+                    model_id = m.name.replace("models/", "")
+                    # Ищем модели flash или pro
+                    if "flash" in model_id or "pro" in model_id:
+                        valid_models.append(model_id)
+
+                if not valid_models:
+                    st.error("❌ Для вашего API-ключа не найдено доступных моделей Gemini. Создайте новый ключ в новом проекте Google AI Studio.")
+                else:
+                    # Выбираем первую подходящую модель (например, gemini-2.0-flash или gemini-1.5-flash)
+                    selected_model = valid_models[0]
+                    st.info(f"ℹ️ Используется модель: `{selected_model}`")
+
+                    # Промпт для распознавания документов
+                    prompt = "Распознай текст на этих фото документов и выдели ключевую информацию."
+
+                    # Вызов генерации
+                    response = client.models.generate_content(
+                        model=selected_model,
+                        contents=[prompt, *images]
+                    )
+
+                    st.success("✅ Распознавание завершено!")
+                    st.write(response.text)
+
             except Exception as e:
-                st.sidebar.error(f"❌ Ошибка: {e}")
+                st.error(f"❌ Ошибка: {e}")
 
 # --- ИНТЕРФЕЙС ВВОДА ДАННЫХ ---
 d = st.session_state.form_data
