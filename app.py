@@ -100,8 +100,8 @@ if st.sidebar.button("🤖 Умное распознавание", type="primary
                response = client.models.generate_content(
                     model='gemini-1.5-flash',
                     contents=[prompt, *images]
-                    )
                 )
+                
                 
                 cleaned_text = response.text.replace("```json", "").replace("```", "").strip()
                 extracted_data = json.loads(cleaned_text)
