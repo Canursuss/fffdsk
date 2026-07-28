@@ -98,7 +98,7 @@ if st.sidebar.button("🤖 Умное распознавание", type="primary
                 """
                 
                 response = client.models.generate_content(
-                    model='gemini-2.0-flash-exp',
+                    model='gemini-1.5-pro-002',
                     contents=[prompt, *images]
                 )
                 
