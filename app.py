@@ -75,37 +75,42 @@ if st.sidebar.button("🤖 Умное распознавание", type="primary
     else:
         with st.spinner("Загрузка и анализ документов..."):
             try:
-                # Инициализация клиента Google GenAI
+                # Инициализация клиента
                 client = genai.Client(api_key=api_key.strip())
                 
-                # Подготовка изображений из загруженных файлов
-                images = []
-                for file in uploaded_files:
-                    image = Image.open(file)
-                    images.append(image)
+                # Подготовка изображений
+                images = [Image.open(file) for file in uploaded_files]
 
-                # --- АВТОМАТИЧЕСКИЙ ПОИСК ДОСТУПНОЙ МОДЕЛИ ---
-                all_models = list(client.models.list())
+                # --- ЯВНОЕ УКАЗАНИЕ АКТУАЛЬНЫХ МОДЕЛЕЙ ---
+                # Перебираем актуальные модели по старшинству
+                candidate_models = [
+                    'gemini-2.5-flash-latest',
+                    'gemini-2.0-flash',
+                    'gemini-1.5-flash'
+                ]
                 
-                # Фильтруем модели, поддерживающие генерацию текста/анализ мультимедиа
-                valid_models = []
-                for m in all_models:
-                    model_id = m.name.replace("models/", "")
-                    # Ищем модели flash или pro
-                    if "flash" in model_id or "pro" in model_id:
-                        valid_models.append(model_id)
+                # Получаем реальный список доступных моделей
+                api_models = [m.name.replace("models/", "") for m in client.models.list()]
+                
+                # Находим первую совпавшую рабочую модель
+                selected_model = None
+                for cand in candidate_models:
+                    if cand in api_models:
+                        selected_model = cand
+                        break
+                
+                # Если совпадений нет, берем любую первую доступную
+                if not selected_model and api_models:
+                    selected_model = api_models[0]
 
-                if not valid_models:
-                    st.error("❌ Для вашего API-ключа не найдено доступных моделей Gemini. Создайте новый ключ в новом проекте Google AI Studio.")
+                if not selected_model:
+                    st.error("❌ Не найдено доступных моделей Gemini.")
                 else:
-                    # Выбираем первую подходящую модель (например, gemini-2.0-flash или gemini-1.5-flash)
-                    selected_model = valid_models[0]
                     st.info(f"ℹ️ Используется модель: `{selected_model}`")
 
-                    # Промпт для распознавания документов
                     prompt = "Распознай текст на этих фото документов и выдели ключевую информацию."
 
-                    # Вызов генерации
+                    # Запрос к Gemini
                     response = client.models.generate_content(
                         model=selected_model,
                         contents=[prompt, *images]
